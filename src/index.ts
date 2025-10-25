@@ -1,11 +1,13 @@
 import { createServer, Server as HTTPServer  } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
+import { UserType } from './types/UserType.type';
 
 dotenv.config();
 
 const httpServer: HTTPServer = createServer();
-
+const userList: UserType[] = [];
+const regExOnlyLettersAndSpace: RegExp = /^[A-Za-z ]+$/;
 const io = new Server(httpServer, {
   cors: {
     origin: 'http://localhost:5173',
@@ -14,16 +16,14 @@ const io = new Server(httpServer, {
 
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
-
-  // Example: handle a "message" event from clients
-  socket.on('message', (data) => {
-    console.log(`Received message from ${socket.id}:`, data);
-    // broadcast to all clients
-    io.emit('message', data);
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`Client disconnected: ${socket.id}`);
+  
+  socket.on('createUser', (newUser: UserType)=>{
+    const userNameTaken = userList.some((user)=> user.name.toLocaleLowerCase() === newUser.name.toLocaleLowerCase());
+    if(userNameTaken) return console.log("Username is already in use.");
+    userList.push(newUser);
+    socket.emit('updateData', {
+      user: newUser,
+    });
   });
 });
 
