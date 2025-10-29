@@ -1,6 +1,12 @@
-type RoomType = {
-  id: string;
+type NewRoomType = {
+  userId: string;
   name: string;
 }
 
-export type { RoomType };
+type RoomType = {
+  id: string;
+  name: string;
+  users: string[];
+}
+
+export type { RoomType, NewRoomType };
