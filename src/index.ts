@@ -51,7 +51,7 @@ io.on('connection', (socket) => {
     };
     roomList.set(newRoomWithId.id, newRoomWithId);
     roomChats.set(newRoomWithId.id, []);
-    socket.emit('updateData', { roomData: newRoom });
+    socket.emit('updateData', { roomData: newRoomWithId });
   });
 
   // Read -------------------------------------------------------------------------------------->
