@@ -1,3 +1,5 @@
+import { UserType } from "./UserType.type";
+
 type NewRoomType = {
   userId: string;
   name: string;
@@ -6,7 +8,7 @@ type NewRoomType = {
 type RoomType = {
   id: string;
   name: string;
-  users: string[];
+  users: Omit<UserType, 'socketId'>[]
 }
 
 export type { RoomType, NewRoomType };

@@ -43,14 +43,19 @@ io.on('connection', (socket) => {
   socket.on('createRoom', (newRoom: NewRoomType)=>{
     if(nameIsTaken(roomList, newRoom.name)) return console.log('Room name is already in use.');
     const { name, userId } = newRoom;
+    
+    const user: UserType | undefined = userList.get(userId);
+    if (!user) return console.log('That user does not exist.');
+    const { socketId, ...publicUser } = user;
 
     const newRoomWithId: RoomType = {
       id: `RID${uuid()}`,
       name: name,
-      users: [ userId ],
+      users: [ publicUser ],
     };
     roomList.set(newRoomWithId.id, newRoomWithId);
     roomChats.set(newRoomWithId.id, []);
+    socket.join(newRoomWithId.id);
     socket.emit('updateData', { roomData: newRoomWithId });
   });
 
@@ -64,15 +69,17 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', ({ userId, roomId }: {userId: string; roomId: string;})=>{
     const room = roomList.get(roomId);
     if(!room) return console.log('That room does not exist.');
+    const user: UserType | undefined = userList.get(userId);
+    if (!user) return console.log('That user does not exist.');
+    const { socketId, ...publicUser } = user;
+
     const updatedRoom: RoomType = {
       ...room,
-      users: [
-        ...room!.users,
-        userId
-      ]
+      users: [...room.users, publicUser]
     };
     roomList.set(roomId, updatedRoom);
-    socket.emit('updateData', { roomData: updatedRoom });
+    socket.join(updatedRoom.id);
+     io.to(roomId).emit('updateData', { roomData: updatedRoom });
   });
 
 });
