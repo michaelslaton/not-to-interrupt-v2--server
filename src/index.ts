@@ -34,6 +34,11 @@ io.on('connection', (socket) => {
     const newUserWithId: UserType = {
         ...newUser,
         id: `UID${uuid()}`,
+        controller: {
+          hasMic: false,
+          afk: false,
+          handUp: false,
+        }
       };
     userList.set(newUserWithId.id, newUserWithId);
     socket.emit('updateData', { user: userList.get(newUserWithId.id) });
