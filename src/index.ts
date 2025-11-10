@@ -84,7 +84,26 @@ io.on('connection', (socket) => {
     };
     roomList.set(roomId, updatedRoom);
     socket.join(updatedRoom.id);
-     io.to(roomId).emit('updateData', { roomData: updatedRoom });
+    io.to(roomId).emit('updateData', { roomData: updatedRoom });
+  });
+
+  socket.on('updateUserInRoom', ({ roomId, newUserData }: {roomId: string, newUserData: UserType})=>{
+    const foundRoom = roomList.get(roomId);
+    const foundUser = userList.get(newUserData.id);
+    if(!foundRoom || !foundUser) return;
+    
+    const updatedUsers = foundRoom.users.map(user =>
+      user.id === newUserData.id ? { ...user, ...newUserData } : user
+    );
+    
+    const updatedRoom: RoomType = {
+      ...foundRoom,
+      users: updatedUsers,
+    };
+
+    roomList.set(roomId, foundRoom);
+    userList.set(newUserData.id, { ...foundUser, ...newUserData });
+    io.to(roomId).emit('updateData', { roomData: updatedRoom });
   });
 
 });
