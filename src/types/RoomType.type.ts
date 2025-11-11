@@ -1,4 +1,4 @@
-import { UserType } from "./UserType.type";
+import { PublicUserType, UserType } from "./UserType.type";
 
 type NewRoomType = {
   userId: string;
@@ -8,7 +8,7 @@ type NewRoomType = {
 type RoomType = {
   id: string;
   name: string;
-  users: Omit<UserType, 'socketId'>[]
+  users: PublicUserType[]
 }
 
 export type { RoomType, NewRoomType };

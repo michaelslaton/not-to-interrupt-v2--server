@@ -8,3 +8,4 @@ type UserType = {
 };
 
 export type { UserType };
+export type PublicUserType = Omit<UserType, 'socketId'>;
