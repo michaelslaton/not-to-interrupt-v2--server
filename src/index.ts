@@ -31,7 +31,7 @@ io.on('connection', (socket) => {
   // Helpers ----------------------------------------------------------------------------------->
   const updateUserInRoomHelper = (room: RoomType, userId: string, newUserData: Partial<UserType>): { updatedRoom: RoomType; updatedUser: UserType } => {
     const foundUser = userList.get(userId);
-    if (!foundUser) throw new Error(`User ${userId} not found`);
+    if(!foundUser) throw new Error(`User ${userId} not found`);
     const updatedUser: UserType = { ...foundUser, ...newUserData };
 
     // Update the room's users array with public user data (strip socketId)
@@ -68,7 +68,7 @@ io.on('connection', (socket) => {
     const { name, userId } = newRoom;
     
     const user: UserType | undefined = userList.get(userId);
-    if (!user) return console.log('That user does not exist.');
+    if(!user) return console.log('That user does not exist.');
     const updatedUser = {
       ...user,
       controller: {
@@ -104,7 +104,7 @@ io.on('connection', (socket) => {
     const room = roomList.get(roomId);
     if(!room) return console.log('That room does not exist.');
     const user: UserType | undefined = userList.get(userId);
-    if (!user) return console.log('That user does not exist.');
+    if(!user) return console.log('That user does not exist.');
     const { socketId, ...publicUser } = user;
 
     const updatedRoom: RoomType = {
@@ -118,7 +118,7 @@ io.on('connection', (socket) => {
 
   socket.on('updateUserInRoom', ({ roomId, newUserData }: {roomId: string, newUserData: UserType}) => {
     const foundRoom = roomList.get(roomId);
-    if (!foundRoom) return;
+    if(!foundRoom) return;
 
     const { updatedRoom } = updateUserInRoomHelper(foundRoom, newUserData.id, newUserData);
 
@@ -127,11 +127,13 @@ io.on('connection', (socket) => {
 
   socket.on('passTheMic', ({ fromUserId, toUserId, roomId }: { fromUserId: string, toUserId: string, roomId: string }) => {
     const foundRoom = roomList.get(roomId);
-    if (!foundRoom) return console.log('Room not found');
+    if(!foundRoom) return console.log('Room not found');
 
     let fromUser = userList.get(fromUserId);
     let toUser = userList.get(toUserId);
-    if (!fromUser || !toUser) return console.log('User not found');
+    if(!fromUser || !toUser) return console.log('User not found');
+    if(!fromUser.controller.hasMic) return ('Origin user does not have the mic');
+    if(toUser.controller.hasMic) return ('Target U=user already has the mic');
 
     const { updatedRoom: roomAfterFrom } = updateUserInRoomHelper(foundRoom, fromUserId, {
       controller: { ...fromUser.controller, hasMic: false },
@@ -145,8 +147,8 @@ io.on('connection', (socket) => {
     toUser = userList.get(toUserId);
 
     io.to(roomId).emit('updateData', { roomData: roomAfterTo });
-    if (toUser?.socketId) io.to(toUser.socketId).emit('updateData', { user: toUser });
-    if (fromUser?.socketId) io.to(fromUser.socketId).emit('updateData', { user: fromUser });
+    if(toUser?.socketId) io.to(toUser.socketId).emit('updateData', { user: toUser });
+    if(fromUser?.socketId) io.to(fromUser.socketId).emit('updateData', { user: fromUser });
   });
 });
 
