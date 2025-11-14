@@ -4,18 +4,92 @@ import { v4 as uuid } from 'uuid';
 import dotenv from 'dotenv';
 import { PublicUserType, UserType } from './types/UserType.type';
 import { NewRoomType, RoomType } from './types/RoomType.type';
+import { ChatEntryType } from './types/ChatEntryType.type';
 
 dotenv.config();
 
 const httpServer: HTTPServer = createServer();
 const userList = new Map<string, UserType>();
 const roomList = new Map<string, RoomType>();
-const roomChats = new Map<string, [][]>();
+const roomChats = new Map<string, ChatEntryType[]>();
 const io = new Server(httpServer, {
   cors: {
     origin: 'http://localhost:5173',
   },
 });
+
+const dummyChatEntries: ChatEntryType[] = [
+  {
+    user: {
+      id: "UID123",
+      name: "Ren",
+      controller: {
+        hasMic: true,
+        afk: false,
+        handUp: false,
+      },
+    },
+    message: "Hey everyone, welcome to the room!",
+    color: "#6A5ACD",
+    timeStamp: new Date("2025-01-01T12:00:00Z"),
+  },
+  {
+    user: {
+      id: "UID456",
+      name: "Bob",
+      controller: {
+        hasMic: false,
+        afk: false,
+        handUp: true,
+      },
+    },
+    message: "Can I get the mic next?",
+    color: "#1E90FF",
+    timeStamp: new Date("2025-01-01T12:01:10Z"),
+  },
+  {
+    user: {
+      id: "UID789",
+      name: "Alice",
+      controller: {
+        hasMic: false,
+        afk: false,
+        handUp: false,
+      },
+    },
+    message: "Nice to meet everyone!",
+    color: "#FF69B4",
+    timeStamp: new Date("2025-01-01T12:02:45Z"),
+  },
+  {
+    user: {
+      id: "UID101",
+      name: "Eli",
+      controller: {
+        hasMic: false,
+        afk: true,
+        handUp: false,
+      },
+    },
+    message: "BRB, grabbing coffee ☕",
+    color: "#32CD32",
+    timeStamp: new Date("2025-01-01T12:03:30Z"),
+  },
+  {
+    user: {
+      id: "UID202",
+      name: "Nova",
+      controller: {
+        hasMic: false,
+        afk: false,
+        handUp: false,
+      },
+    },
+    message: "This app is looking awesome so far!",
+    color: "#FFD700",
+    timeStamp: new Date("2025-01-01T12:05:10Z"),
+  },
+];
 
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
@@ -84,7 +158,7 @@ io.on('connection', (socket) => {
     };
     
     roomList.set(newRoomWithId.id, newRoomWithId);
-    roomChats.set(newRoomWithId.id, []);
+    roomChats.set(newRoomWithId.id, [...dummyChatEntries]);
     userList.set(userId, updatedUser);
     socket.join(newRoomWithId.id);
     socket.emit('updateData', {
@@ -98,6 +172,11 @@ io.on('connection', (socket) => {
     const roomListData = Array.from(roomList.values()).map(room => ({ name: room.name, users: room.users, id: room.id }));
     socket.emit('roomListUpdate', roomListData);
   });
+
+  socket.on('getChatEntries', ({ roomId }: {roomId: string;}) => {
+    const data = roomChats.get(roomId);
+    socket.emit('getChatEntries', data);
+  })
 
   // Update ------------------------------------------------------------------------------------>
   socket.on('joinRoom', ({ userId, roomId }: {userId: string; roomId: string;})=>{
