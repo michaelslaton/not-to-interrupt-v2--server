@@ -3,8 +3,13 @@ import type { PublicUserType } from "./UserType.type";
 type ChatEntryType = {
   user: PublicUserType;
   message: string;
-  color: string;
   timeStamp: Date;
 }
 
-export type { ChatEntryType };
+type ChatIncomingType = {
+  roomId: string;
+  user: string;
+  message: string;
+}
+
+export type { ChatEntryType, ChatIncomingType };

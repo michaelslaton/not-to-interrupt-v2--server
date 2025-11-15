@@ -4,7 +4,7 @@ import { v4 as uuid } from 'uuid';
 import dotenv from 'dotenv';
 import { PublicUserType, UserType } from './types/UserType.type';
 import { NewRoomType, RoomType } from './types/RoomType.type';
-import { ChatEntryType } from './types/ChatEntryType.type';
+import { ChatEntryType, ChatIncomingType } from './types/ChatEntryType.type';
 
 dotenv.config();
 
@@ -18,82 +18,8 @@ const io = new Server(httpServer, {
   },
 });
 
-const dummyChatEntries: ChatEntryType[] = [
-  {
-    user: {
-      id: "UID123",
-      name: "Ren",
-      controller: {
-        hasMic: true,
-        afk: false,
-        handUp: false,
-      },
-    },
-    message: "Hey everyone, welcome to the room!",
-    color: "#6A5ACD",
-    timeStamp: new Date("2025-01-01T12:00:00Z"),
-  },
-  {
-    user: {
-      id: "UID456",
-      name: "Bob",
-      controller: {
-        hasMic: false,
-        afk: false,
-        handUp: true,
-      },
-    },
-    message: "Can I get the mic next?",
-    color: "#1E90FF",
-    timeStamp: new Date("2025-01-01T12:01:10Z"),
-  },
-  {
-    user: {
-      id: "UID789",
-      name: "Alice",
-      controller: {
-        hasMic: false,
-        afk: false,
-        handUp: false,
-      },
-    },
-    message: "Nice to meet everyone!",
-    color: "#FF69B4",
-    timeStamp: new Date("2025-01-01T12:02:45Z"),
-  },
-  {
-    user: {
-      id: "UID101",
-      name: "Eli",
-      controller: {
-        hasMic: false,
-        afk: true,
-        handUp: false,
-      },
-    },
-    message: "BRB, grabbing coffee ☕",
-    color: "#32CD32",
-    timeStamp: new Date("2025-01-01T12:03:30Z"),
-  },
-  {
-    user: {
-      id: "UID202",
-      name: "Nova",
-      controller: {
-        hasMic: false,
-        afk: false,
-        handUp: false,
-      },
-    },
-    message: "This app is looking awesome so far!",
-    color: "#FFD700",
-    timeStamp: new Date("2025-01-01T12:05:10Z"),
-  },
-];
-
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
-  io.emit('reset');
 
   // Validation -------------------------------------------------------------------------------->
   const regExOnlyLettersAndSpace: RegExp = /^[A-Za-z ]+$/;
@@ -104,12 +30,12 @@ io.on('connection', (socket) => {
 
   // Helpers ----------------------------------------------------------------------------------->
   const updateUserInRoomHelper = (room: RoomType, userId: string, newUserData: Partial<UserType>): { updatedRoom: RoomType; updatedUser: UserType } => {
-    const foundUser = userList.get(userId);
+    const foundUser: UserType | undefined = userList.get(userId);
     if(!foundUser) throw new Error(`User ${userId} not found`);
     const updatedUser: UserType = { ...foundUser, ...newUserData };
 
     // Update the room's users array with public user data (strip socketId)
-    const updatedUsers = room.users.map(user =>
+    const updatedUsers: PublicUserType[] = room.users.map(user =>
       user.id === userId ? (({ socketId, ...publicUser }) => publicUser)(updatedUser) : user
     );
     const updatedRoom: RoomType = { ...room, users: updatedUsers };
@@ -123,10 +49,10 @@ io.on('connection', (socket) => {
   // Create ------------------------------------------------------------------------------------>
   socket.on('createUser', (newUser: UserType)=>{
     if(nameIsTaken(userList, newUser.name)) return console.log('Username is already in use.');
-    // this a dam test
     const newUserWithId: UserType = {
         ...newUser,
         id: `UID${uuid()}`,
+        color: '#1ba099ff',
         controller: {
           hasMic: false,
           afk: false,
@@ -158,7 +84,7 @@ io.on('connection', (socket) => {
     };
     
     roomList.set(newRoomWithId.id, newRoomWithId);
-    roomChats.set(newRoomWithId.id, [...dummyChatEntries]);
+    roomChats.set(newRoomWithId.id, []);
     userList.set(userId, updatedUser);
     socket.join(newRoomWithId.id);
     socket.emit('updateData', {
@@ -174,13 +100,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('getChatEntries', ({ roomId }: {roomId: string;}) => {
-    const data = roomChats.get(roomId);
+    const data: ChatEntryType[] | undefined = roomChats.get(roomId);
+    if(!data) return console.error('Missing Data');
     socket.emit('getChatEntries', data);
   })
 
   // Update ------------------------------------------------------------------------------------>
   socket.on('joinRoom', ({ userId, roomId }: {userId: string; roomId: string;})=>{
-    const room = roomList.get(roomId);
+    const room: RoomType | undefined = roomList.get(roomId);
     if(!room) return console.log('That room does not exist.');
     const user: UserType | undefined = userList.get(userId);
     if(!user) return console.log('That user does not exist.');
@@ -196,20 +123,18 @@ io.on('connection', (socket) => {
   });
 
   socket.on('updateUserInRoom', ({ roomId, newUserData }: {roomId: string, newUserData: UserType}) => {
-    const foundRoom = roomList.get(roomId);
+    const foundRoom: RoomType | undefined = roomList.get(roomId);
     if(!foundRoom) return;
-
     const { updatedRoom } = updateUserInRoomHelper(foundRoom, newUserData.id, newUserData);
-
     io.to(roomId).emit('updateData', { roomData: updatedRoom });
   });
 
   socket.on('passTheMic', ({ fromUserId, toUserId, roomId }: { fromUserId: string, toUserId: string, roomId: string }) => {
-    const foundRoom = roomList.get(roomId);
-    if(!foundRoom) return console.log('Room not found');
+    const foundRoom: RoomType | undefined = roomList.get(roomId);
+    if(!foundRoom) return console.error('Room not found');
 
-    let fromUser = userList.get(fromUserId);
-    let toUser = userList.get(toUserId);
+    let fromUser: UserType | undefined = userList.get(fromUserId);
+    let toUser: UserType | undefined = userList.get(toUserId);
     if(!fromUser || !toUser) return console.log('User not found');
     if(!fromUser.controller.hasMic) return ('Origin user does not have the mic');
     if(toUser.controller.hasMic) return ('Target U=user already has the mic');
@@ -229,6 +154,25 @@ io.on('connection', (socket) => {
     if(toUser?.socketId) io.to(toUser.socketId).emit('updateData', { user: toUser });
     if(fromUser?.socketId) io.to(fromUser.socketId).emit('updateData', { user: fromUser });
   });
+
+  socket.on('sendChat', ({ roomId, user, message }: ChatIncomingType)=>{
+    const foundRoom: RoomType | undefined = roomList.get(roomId);
+    const foundUser: UserType | undefined = userList.get(user);
+    const foundChat: ChatEntryType[] | undefined = roomChats.get(roomId);
+    if(!foundRoom || !foundUser || !foundChat) return console.error('Missing Element');
+    const { socketId, ...publicUser } = foundUser;
+
+    const newChatEntry: ChatEntryType = {
+      user: publicUser,
+      message,
+      timeStamp: new Date(),
+    };
+
+    foundChat.push(newChatEntry);
+    roomChats.set(roomId, foundChat);
+    io.to(roomId).emit('getChatEntries', foundChat);
+  });
+
 });
 
 const PORT = process.env.PORT || 3000;
