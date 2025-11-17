@@ -52,7 +52,7 @@ io.on('connection', (socket) => {
     const newUserWithId: UserType = {
         ...newUser,
         id: `UID${uuid()}`,
-        color: '#1ba099ff',
+        color: '#1ba099',
         controller: {
           hasMic: false,
           afk: false,
@@ -169,6 +169,24 @@ io.on('connection', (socket) => {
     };
 
     foundChat.push(newChatEntry);
+    roomChats.set(roomId, foundChat);
+    io.to(roomId).emit('getChatEntries', foundChat);
+  });
+
+  socket.on('updateColor', ({ roomId, newUserData }: { roomId: string; newUserData: UserType }) => {
+    const foundUser = userList.get(newUserData.id);
+    const foundRoom = roomList.get(roomId);
+    const foundChat = roomChats.get(roomId);
+
+    if (!foundUser) throw new Error(`User ${newUserData.id} not found`);
+    if (!foundRoom || !foundChat) return;
+
+    const { updatedUser } = updateUserInRoomHelper(foundRoom, foundUser.id, newUserData);
+
+    for (const entry of foundChat) {
+      if (entry.user.id === updatedUser.id) entry.user.color = updatedUser.color;
+    };
+
     roomChats.set(roomId, foundChat);
     io.to(roomId).emit('getChatEntries', foundChat);
   });
