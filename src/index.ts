@@ -46,9 +46,15 @@ io.on('connection', (socket) => {
     return { updatedRoom, updatedUser };
   };
 
+  const errorHandler = (message: string): void => {
+    const error = new Error(message);
+    socket.emit('error', error.message);
+    console.error(error.message);
+  };
+
   // Create ------------------------------------------------------------------------------------>
-  socket.on('createUser', (newUser: UserType)=>{
-    if(nameIsTaken(userList, newUser.name)) return console.log('Username is already in use.');
+  socket.on('createUser', (newUser: UserType) => {
+    if(nameIsTaken(userList, newUser.name)) return errorHandler('Username is already in use.');
     const newUserWithId: UserType = {
         ...newUser,
         id: `UID${uuid()}`,
@@ -64,11 +70,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('createRoom', (newRoom: NewRoomType)=>{
-    if(nameIsTaken(roomList, newRoom.name)) return console.log('Room name is already in use.');
+    if(nameIsTaken(roomList, newRoom.name)) return errorHandler('Room name is already in use.');
     const { name, userId } = newRoom;
     
     const user: UserType | undefined = userList.get(userId);
-    if(!user) return console.log('That user does not exist.');
+    if(!user) return errorHandler('That user does not exist.');
     const updatedUser = {
       ...user,
       controller: {
@@ -101,16 +107,16 @@ io.on('connection', (socket) => {
 
   socket.on('getChatEntries', ({ roomId }: {roomId: string;}) => {
     const data: ChatEntryType[] | undefined = roomChats.get(roomId);
-    if(!data) return console.error('Missing Data');
+    if(!data) return errorHandler('Missing Data');
     socket.emit('getChatEntries', data);
-  })
+  });
 
   // Update ------------------------------------------------------------------------------------>
   socket.on('joinRoom', ({ userId, roomId }: {userId: string; roomId: string;})=>{
     const room: RoomType | undefined = roomList.get(roomId);
-    if(!room) return console.log('That room does not exist.');
+    if(!room) return errorHandler('That room does not exist.');
     const user: UserType | undefined = userList.get(userId);
-    if(!user) return console.log('That user does not exist.');
+    if(!user) return errorHandler('That user does not exist.');
     const { socketId, ...publicUser } = user;
 
     const updatedRoom: RoomType = {
@@ -124,20 +130,20 @@ io.on('connection', (socket) => {
 
   socket.on('updateUserInRoom', ({ roomId, newUserData }: {roomId: string, newUserData: UserType}) => {
     const foundRoom: RoomType | undefined = roomList.get(roomId);
-    if(!foundRoom) return;
+    if(!foundRoom) return errorHandler('Target room not found');
     const { updatedRoom } = updateUserInRoomHelper(foundRoom, newUserData.id, newUserData);
     io.to(roomId).emit('updateData', { roomData: updatedRoom });
   });
 
   socket.on('passTheMic', ({ fromUserId, toUserId, roomId }: { fromUserId: string, toUserId: string, roomId: string }) => {
     const foundRoom: RoomType | undefined = roomList.get(roomId);
-    if(!foundRoom) return console.error('Room not found');
+    if(!foundRoom) return errorHandler('Room not found');
 
     let fromUser: UserType | undefined = userList.get(fromUserId);
     let toUser: UserType | undefined = userList.get(toUserId);
-    if(!fromUser || !toUser) return console.log('User not found');
-    if(!fromUser.controller.hasMic) return ('Origin user does not have the mic');
-    if(toUser.controller.hasMic) return ('Target U=user already has the mic');
+    if(!fromUser || !toUser) return errorHandler('User not found');
+    if(!fromUser.controller.hasMic) return errorHandler('Origin user does not have the mic');
+    if(toUser.controller.hasMic) return errorHandler('Target U=user already has the mic');
 
     const { updatedRoom: roomAfterFrom } = updateUserInRoomHelper(foundRoom, fromUserId, {
       controller: { ...fromUser.controller, hasMic: false },
@@ -159,7 +165,7 @@ io.on('connection', (socket) => {
     const foundRoom: RoomType | undefined = roomList.get(roomId);
     const foundUser: UserType | undefined = userList.get(user);
     const foundChat: ChatEntryType[] | undefined = roomChats.get(roomId);
-    if(!foundRoom || !foundUser || !foundChat) return console.error('Missing Element');
+    if(!foundRoom || !foundUser || !foundChat) return errorHandler('Missing Element');
     const { socketId, ...publicUser } = foundUser;
 
     const newChatEntry: ChatEntryType = {
@@ -178,8 +184,9 @@ io.on('connection', (socket) => {
     const foundRoom = roomList.get(roomId);
     const foundChat = roomChats.get(roomId);
 
-    if (!foundUser) throw new Error(`User ${newUserData.id} not found`);
-    if (!foundRoom || !foundChat) return;
+    if (!foundUser) return errorHandler(`User ${newUserData.id} not found`);
+    if (!foundRoom) return errorHandler(`Room ${roomId} not found`);
+    if (!foundChat) return errorHandler('Missing Element');
 
     const { updatedUser } = updateUserInRoomHelper(foundRoom, foundUser.id, newUserData);
 
