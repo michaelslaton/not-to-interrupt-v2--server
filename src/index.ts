@@ -187,14 +187,19 @@ io.on('connection', (socket) => {
     if (!foundUser) return errorHandler(`User ${newUserData.id} not found`);
     if (!foundRoom) return errorHandler(`Room ${roomId} not found`);
     if (!foundChat) return errorHandler('Missing Element');
-
+    
     const { updatedUser } = updateUserInRoomHelper(foundRoom, foundUser.id, newUserData);
-
+    const updatedFullUser: UserType = {
+      ...foundUser,
+      color: newUserData.color
+    };
     for (const entry of foundChat) {
       if (entry.user.id === updatedUser.id) entry.user.color = updatedUser.color;
     };
 
     roomChats.set(roomId, foundChat);
+    userList.set(updatedFullUser.id, updatedFullUser);
+    socket.emit('updateData', { user: updatedFullUser });
     io.to(roomId).emit('getChatEntries', foundChat);
   });
 
